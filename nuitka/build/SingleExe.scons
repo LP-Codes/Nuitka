@@ -27,16 +27,30 @@ build process for itself, although it can be compiled using the same method.
 
 from __future__ import print_function
 
+# Make nuitka package importable from calling installation
+
+import sys
 import os
+import types
+
+sys.modules["nuitka"] = types.ModuleType("nuitka")
+sys.modules["nuitka"].__path__ = [os.environ["NUITKA_PACKAGE_DIR"]]
+
+# isort:start
+
 import platform
 import re
 import shutil
 import signal
 import subprocess
-import sys
+
+# Thread class to run a command
+import threading
 
 import SCons  # pylint: disable=import-error
 import SCons.Tool.gcc  # pylint: disable=import-error
+from nuitka.Tracing import scons_logger
+from nuitka.utils.Timing import TimerReport
 
 
 def _decode(data):
@@ -536,23 +550,27 @@ def createEnvironment(tools):
     )
 
 
-if mingw_mode:
-    # Force usage of MinGW, disable MSVC tools.
-    compiler_tools = ["mingw"]
+def getCompilerTools():
+    if mingw_mode:
+        # Force usage of MinGW, disable MSVC tools.
+        compiler_tools = ["mingw"]
 
-    import SCons.Tool.MSCommon.vc  # pylint: disable=import-error
+        import SCons.Tool.MSCommon.vc  # pylint: disable=import-error,redefined-outer-name
 
-    SCons.Tool.MSCommon.vc.msvc_setup_env = lambda *args: None
+        SCons.Tool.MSCommon.vc.msvc_setup_env = lambda *args: None
 
-else:
-    # Everything else should use default.
-    compiler_tools = ["default"]
+    else:
+        # Everything else should use default.
+        compiler_tools = ["default"]
 
-printCompilerVersionOutput("Tools=", compiler_tools)
+    printCompilerVersionOutput("Tools=", compiler_tools)
+
+    return compiler_tools
+
 
 # Create Scons environment, the main control tool. Don't include "mingw" on
 # Windows immediately, we will default to MSVC if available.
-env = createEnvironment(tools=compiler_tools)
+env = createEnvironment(tools=getCompilerTools())
 
 # On Windows, in case MSVC was not found and not previously forced, retry with
 # it and use that instead then as a fallback. Using both tools in one call
@@ -609,13 +627,67 @@ elif clang_mode:
     env["CC"] = "clang"
     env["CCVERSION"] = None
 
+
+class SubprocessThread(threading.Thread):
+    def __init__(self, cmdline, env):  # pylint: disable=redefined-outer-name
+        threading.Thread.__init__(self)
+
+        self.cmdline = cmdline
+        self.env = env
+
+        self.data = None
+        self.err = None
+        self.exit_code = None
+
+        self.timer_report = TimerReport(
+            message="Running %r took %%.2f seconds" % self.cmdline, min_report_time=60
+        )
+
+    def run(self):
+        # execute the command, queue the result
+        with self.timer_report:
+            proc = subprocess.Popen(
+                self.cmdline,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=False,
+                env=self.env,
+            )
+
+            self.data, self.err = proc.communicate()
+            self.exit_code = proc.wait()
+
+    def getResult(self):
+        return self.data, self.err, self.exit_code
+
+
+def runProcessMonitored(cmdline, env):  # pylint: disable=redefined-outer-name
+    thread = SubprocessThread(cmdline, env)
+    thread.start()
+
+    # Allow a minute before warning for long compile time.
+    thread.join(60)
+
+    if thread.isAlive():
+        scons_logger.warning(
+            "Slow C compilation discovered, used %.0fs so far."
+            % thread.timer_report.getTimer().getDelta()
+        )
+
+    thread.join()
+
+    return thread.getResult()
+
+
 # To work around Windows not supporting command lines of greater than 10K by
 # default:
 def setupSpawn(env):  # pylint: disable=redefined-outer-name
     def spawn(
         sh, escape, cmd, args, env
     ):  # pylint: disable=redefined-outer-name,unused-argument
-        # The "del" appears to not work, but is used with large amounts of
+
+        # The "del" appears to not work reliably, but is used with large amounts of
         # files to link. So, lets do this ourselves, plus it avoids a process
         # spawn.
         if cmd == "del":
@@ -641,17 +713,7 @@ def setupSpawn(env):  # pylint: disable=redefined-outer-name
         if cmd == "windres":
             cmdline = re.sub('--include-dir ".*?"', "", cmdline)
 
-        proc = subprocess.Popen(
-            cmdline,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=False,
-            env=env,
-        )
-
-        data, err = proc.communicate()
-        rv = proc.wait()
+        data, err, rv = runProcessMonitored(cmdline, env)
 
         if cmd == "rc":
             data = data[data.find(b"reserved.\r") + 13 :]

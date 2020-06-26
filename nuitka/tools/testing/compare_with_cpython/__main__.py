@@ -109,7 +109,7 @@ def _getCPythonResults(cpython_cmd):
         my_print("Retrying CPython due to permission problems after delay.")
         time.sleep(2)
 
-    cpython_time = stop_watch.delta()
+    cpython_time = stop_watch.getDelta()
 
     return cpython_time, stdout_cpython, stderr_cpython, exit_cpython
 
@@ -623,7 +623,7 @@ Stderr was:
             time.sleep(2)
 
     stop_watch.stop()
-    nuitka_time = stop_watch.delta()
+    nuitka_time = stop_watch.getDelta()
 
     if not silent_mode:
         displayOutput(stdout_nuitka, stderr_nuitka)
