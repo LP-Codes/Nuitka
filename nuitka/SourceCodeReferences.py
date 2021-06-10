@@ -109,9 +109,7 @@ class SourceCodeReference(object):
             it is already internal.
         """
         if not self.isInternal():
-            result = self._clone(self.line)
-
-            return result
+            return self._clone(self.line)
         else:
             return self
 
@@ -132,12 +130,12 @@ class SourceCodeReference(object):
     def atColumnNumber(self, column):
         assert type(column) is int, column
 
-        if self.column != column:
-            result = self._clone(self.line)
-            result.column = column
-            return result
-        else:
+        if self.column == column:
             return self
+
+        result = self._clone(self.line)
+        result.column = column
+        return result
 
     def getLineNumber(self):
         return self.line

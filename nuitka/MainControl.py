@@ -141,15 +141,15 @@ def createNodeTree(filename):
     # Then optimize the tree and potentially recursed modules.
     Optimization.optimize(main_module.getOutputFilename())
 
-    if Options.isExperimental("check_xml_persistence"):
-        for module in ModuleRegistry.getRootModules():
-            if module.isMainModule():
-                return module
-
-        assert False
-    else:
+    if not Options.isExperimental("check_xml_persistence"):
         # Main module might change behind our back, look it up again.
         return main_module
+
+    for module in ModuleRegistry.getRootModules():
+        if module.isMainModule():
+            return module
+
+    assert False
 
 
 def dumpTreeXML(tree):

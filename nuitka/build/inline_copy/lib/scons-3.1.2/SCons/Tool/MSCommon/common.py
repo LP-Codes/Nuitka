@@ -241,8 +241,7 @@ def get_output(vcbat, args = None, env = None):
     if popen.wait() != 0:
         raise IOError(stderr.decode("mbcs"))
 
-    output = stdout.decode("mbcs")
-    return output
+    return stdout.decode("mbcs")
 
 KEEPLIST = ("INCLUDE", "LIB", "LIBPATH", "PATH", 'VSCMD_ARG_app_plat')
 def parse_output(output, keep=KEEPLIST):

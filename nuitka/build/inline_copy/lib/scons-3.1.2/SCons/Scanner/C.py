@@ -97,8 +97,8 @@ class SConsCPPScannerWrapper(object):
                               cpppath = path,
                               dict = dictify_CPPDEFINES(env))
         result = cpp(node)
+        fmt = "No dependency generated for file: %s (included from: %s) -- file not found"
         for included, includer in cpp.missing:
-            fmt = "No dependency generated for file: %s (included from: %s) -- file not found"
             SCons.Warnings.warn(SCons.Warnings.DependencyWarning,
                                 fmt % (included, includer))
         return result

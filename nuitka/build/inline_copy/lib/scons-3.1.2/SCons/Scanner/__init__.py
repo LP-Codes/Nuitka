@@ -171,10 +171,7 @@ class Base(object):
         self.argument = argument
 
         if skeys is _null:
-            if SCons.Util.is_Dict(function):
-                skeys = list(function.keys())
-            else:
-                skeys = []
+            skeys = list(function.keys()) if SCons.Util.is_Dict(function) else []
         self.skeys = skeys
 
         self.node_class = node_class
@@ -246,14 +243,14 @@ class Base(object):
         return self.skeys
 
     def select(self, node):
-        if SCons.Util.is_Dict(self.function):
-            key = node.scanner_key()
-            try:
-                return self.function[key]
-            except KeyError:
-                return None
-        else:
+        if not SCons.Util.is_Dict(self.function):
             return self
+
+        key = node.scanner_key()
+        try:
+            return self.function[key]
+        except KeyError:
+            return None
 
     def _recurse_all_nodes(self, nodes):
         return nodes

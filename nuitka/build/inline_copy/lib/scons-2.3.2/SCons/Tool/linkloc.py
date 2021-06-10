@@ -66,15 +66,15 @@ class LinklocGenerator(object):
         self.cmdline = cmdline
 
     def __call__(self, env, target, source, for_signature):
-        if for_signature:
-            # Expand the contents of any linker command files recursively
-            subs = 1
-            strsub = env.subst(self.cmdline, target=target, source=source)
-            while subs:
-                strsub, subs = _re_linker_command.subn(repl_linker_command, strsub)
-            return strsub
-        else:
+        if not for_signature:
             return "${TEMPFILE('" + self.cmdline + "')}"
+
+        # Expand the contents of any linker command files recursively
+        subs = 1
+        strsub = env.subst(self.cmdline, target=target, source=source)
+        while subs:
+            strsub, subs = _re_linker_command.subn(repl_linker_command, strsub)
+        return strsub
 
 def generate(env):
     """Add Builders and construction variables for ar to an Environment."""

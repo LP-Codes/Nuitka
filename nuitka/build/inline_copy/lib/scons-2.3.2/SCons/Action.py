@@ -152,10 +152,10 @@ else:
             if op >= HAVE_ARGUMENT:
                 if op != SET_LINENO:
                     result.append(code[i:i+3])
-                i = i+3
+                i += 3
             else:
                 result.append(c)
-                i = i+1
+                i += 1
         return ''.join(result)
 
 strip_quotes = re.compile('^[\'"](.*)[\'"]$')
@@ -366,10 +366,7 @@ def _do_create_action(act, kw):
             del kw['generator']
         except KeyError:
             gen = 0
-        if gen:
-            action_type = CommandGeneratorAction
-        else:
-            action_type = FunctionAction
+        action_type = CommandGeneratorAction if gen else FunctionAction
         return action_type(act, kw)
 
     if is_String(act):
@@ -389,7 +386,7 @@ def _do_create_action(act, kw):
         # reprocess them via _do_create_list_action.
         return _do_create_list_action(commands, kw)
     # Catch a common error case with a nice message:
-    if isinstance(act, int) or isinstance(act, float):
+    if isinstance(act, (int, float)):
         raise TypeError("Don't know how to create an Action from a number (%s)"%act)
     # Else fail silently (???)
     return None
@@ -532,8 +529,8 @@ class _ActionAction(ActionBase):
 
         if presub is _null:
             presub = self.presub
-            if presub is _null:
-                presub = print_actions_presub
+        if presub is _null:
+            presub = print_actions_presub
         if exitstatfunc is _null: exitstatfunc = self.exitstatfunc
         if show is _null:  show = print_actions
         if execute is _null:  execute = execute_actions
@@ -704,10 +701,9 @@ class CommandAction(_ActionAction):
         if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.CommandAction')
 
         _ActionAction.__init__(self, **kw)
-        if is_List(cmd):
-            if list(filter(is_List, cmd)):
-                raise TypeError("CommandAction should be given only " \
-                      "a single command")
+        if is_List(cmd) and list(filter(is_List, cmd)):
+            raise TypeError("CommandAction should be given only " \
+                  "a single command")
         self.cmd_list = cmd
 
     def __str__(self):
@@ -823,10 +819,7 @@ class CommandAction(_ActionAction):
         """
         from SCons.Subst import SUBST_SIG
         cmd = self.cmd_list
-        if is_List(cmd):
-            cmd = ' '.join(map(str, cmd))
-        else:
-            cmd = str(cmd)
+        cmd = ' '.join(map(str, cmd)) if is_List(cmd) else str(cmd)
         if executor:
             return env.subst_target_source(cmd, SUBST_SIG, executor=executor)
         else:
@@ -955,15 +948,12 @@ class LazyAction(CommandGeneratorAction, CommandAction):
 
     def get_parent_class(self, env):
         c = env.get(self.var)
-        if is_String(c) and not '\n' in c:
+        if is_String(c) and '\n' not in c:
             return CommandAction
         return CommandGeneratorAction
 
     def _generate_cache(self, env):
-        if env:
-            c = env.get(self.var, '')
-        else:
-            c = ''
+        c = env.get(self.var, '') if env else ''
         gen_cmd = Action(c, **self.gen_kw)
         if not gen_cmd:
             raise SCons.Errors.UserError("$%s value %s cannot be used to create an Action." % (self.var, repr(c)))
@@ -1123,7 +1113,7 @@ class ListAction(ActionBase):
         self.targets = '$TARGETS'
 
     def genstring(self, target, source, env):
-        return '\n'.join([a.genstring(target, source, env) for a in self.list])
+        return '\n'.join(a.genstring(target, source, env) for a in self.list)
 
     def __str__(self):
         return '\n'.join(map(str, self.list))
@@ -1137,7 +1127,7 @@ class ListAction(ActionBase):
 
         Simple concatenation of the signatures of the elements.
         """
-        return "".join([x.get_contents(target, source, env) for x in self.list])
+        return "".join(x.get_contents(target, source, env) for x in self.list)
 
     def __call__(self, target, source, env, exitstatfunc=_null, presub=_null,
                  show=_null, execute=_null, chdir=_null, executor=None):
@@ -1198,9 +1188,7 @@ class ActionCaller(object):
         # If s is a list, recursively apply subst()
         # to every element in the list
         if is_List(s):
-            result = []
-            for elem in s:
-                result.append(self.subst(elem, target, source, env))
+            result = [self.subst(elem, target, source, env) for elem in s]
             return self.parent.convert(result)
 
         # Special-case hack:  Let a custom function wrapped in an
@@ -1216,10 +1204,10 @@ class ActionCaller(object):
         return [self.subst(x, target, source, env) for x in self.args]
 
     def subst_kw(self, target, source, env):
-        kw = {}
-        for key in self.kw.keys():
-            kw[key] = self.subst(self.kw[key], target, source, env)
-        return kw
+        return {
+            key: self.subst(self.kw[key], target, source, env)
+            for key in self.kw.keys()
+        }
 
     def __call__(self, target, source, env, executor=None):
         args = self.subst_args(target, source, env)
@@ -1250,8 +1238,7 @@ class ActionFactory(object):
 
     def __call__(self, *args, **kw):
         ac = ActionCaller(self, args, kw)
-        action = Action(ac, strfunction=ac.strfunction)
-        return action
+        return Action(ac, strfunction=ac.strfunction)
 
 # Local Variables:
 # tab-width:4

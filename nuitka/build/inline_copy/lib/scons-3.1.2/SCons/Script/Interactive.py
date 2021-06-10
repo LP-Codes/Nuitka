@@ -121,10 +121,7 @@ version                 Prints SCons version information.
         for key, val in kw.items():
             setattr(self, key, val)
 
-        if sys.platform == 'win32':
-            self.shell_variable = 'COMSPEC'
-        else:
-            self.shell_variable = 'SHELL'
+        self.shell_variable = 'COMSPEC' if sys.platform == 'win32' else 'SHELL'
 
     def default(self, argv):
         print("*** Unknown command: %s" % argv[0])
@@ -145,12 +142,11 @@ version                 Prints SCons version information.
         argv[0] = self.synonyms.get(argv[0], argv[0])
         if not argv[0]:
             return self.default(line)
-        else:
-            try:
-                func = getattr(self, 'do_' + argv[0])
-            except AttributeError:
-                return self.default(argv)
-            return func(argv)
+        try:
+            func = getattr(self, 'do_' + argv[0])
+        except AttributeError:
+            return self.default(argv)
+        return func(argv)
 
     def do_build(self, argv):
         """\

@@ -416,10 +416,8 @@ int main() {
     _YesNoResult(context, ret, "HAVE_" + type_name, text,
                  "Define to 1 if the system has the type `%s'." % type_name)
     if ret and fallback and context.headerfilename:
-        f = open(context.headerfilename, "a")
-        f.write("typedef %s %s;\n" % (fallback, type_name))
-        f.close()
-
+        with open(context.headerfilename, "a") as f:
+            f.write("typedef %s %s;\n" % (fallback, type_name))
     return ret
 
 def CheckTypeSize(context, type_name, header = None, language = None, expect = None):
@@ -456,36 +454,7 @@ def CheckTypeSize(context, type_name, header = None, language = None, expect = N
         return msg
 
     src = includetext + header
-    if not expect is None:
-        # Only check if the given size is the right one
-        context.Display('Checking %s is %d bytes... ' % (type_name, expect))
-
-        # test code taken from autoconf: this is a pretty clever hack to find that
-        # a type is of a given size using only compilation. This speeds things up
-        # quite a bit compared to straightforward code using TryRun
-        src = src + r"""
-typedef %s scons_check_type;
-
-int main()
-{
-    static int test_array[1 - 2 * !(((long int) (sizeof(scons_check_type))) == %d)];
-    test_array[0] = 0;
-
-    return 0;
-}
-"""
-
-        st = context.CompileProg(src % (type_name, expect), suffix)
-        if not st:
-            context.Display("yes\n")
-            _Have(context, "SIZEOF_%s" % type_name, expect,
-                  "The size of `%s', as computed by sizeof." % type_name)
-            return expect
-        else:
-            context.Display("no\n")
-            _LogFailed(context, src, st)
-            return 0
-    else:
+    if expect is None:
         # Only check if the given size is the right one
         context.Message('Checking size of %s ... ' % type_name)
 
@@ -513,16 +482,45 @@ int main() {
             st = 1
             size = 0
 
-        if not st:
-            context.Display("yes\n")
-            _Have(context, "SIZEOF_%s" % type_name, size,
-                  "The size of `%s', as computed by sizeof." % type_name)
-            return size
-        else:
+        if st:
             context.Display("no\n")
             _LogFailed(context, src, st)
             return 0
 
+        else:
+            context.Display("yes\n")
+            _Have(context, "SIZEOF_%s" % type_name, size,
+                  "The size of `%s', as computed by sizeof." % type_name)
+            return size
+    else:
+        # Only check if the given size is the right one
+        context.Display('Checking %s is %d bytes... ' % (type_name, expect))
+
+        # test code taken from autoconf: this is a pretty clever hack to find that
+        # a type is of a given size using only compilation. This speeds things up
+        # quite a bit compared to straightforward code using TryRun
+        src = src + r"""
+typedef %s scons_check_type;
+
+int main()
+{
+    static int test_array[1 - 2 * !(((long int) (sizeof(scons_check_type))) == %d)];
+    test_array[0] = 0;
+
+    return 0;
+}
+"""
+
+        st = context.CompileProg(src % (type_name, expect), suffix)
+        if st:
+            context.Display("no\n")
+            _LogFailed(context, src, st)
+            return 0
+        else:
+            context.Display("yes\n")
+            _Have(context, "SIZEOF_%s" % type_name, expect,
+                  "The size of `%s', as computed by sizeof." % type_name)
+            return expect
     return 0
 
 def CheckDeclaration(context, symbol, includes = None, language = None):
@@ -663,10 +661,7 @@ return 0;
             l = [ lib_name ]
             if extra_libs:
                 l.extend(extra_libs)
-            if append:
-                oldLIBS = context.AppendLIBS(l)
-            else:
-                oldLIBS = context.PrependLIBS(l)
+            oldLIBS = context.AppendLIBS(l) if append else context.PrependLIBS(l)
             sym = "HAVE_LIB" + lib_name
         else:
             oldLIBS = -1
@@ -734,15 +729,10 @@ def _Have(context, key, have, comment = None):
     else:
         line = "#define %s %s\n" % (key_up, str(have))
 
-    if comment is not None:
-        lines = "\n/* %s */\n" % comment + line
-    else:
-        lines = "\n" + line
-
+    lines = "\n/* %s */\n" % comment + line if comment is not None else "\n" + line
     if context.headerfilename:
-        f = open(context.headerfilename, "a")
-        f.write(lines)
-        f.close()
+        with open(context.headerfilename, "a") as f:
+            f.write(lines)
     elif hasattr(context,'config_h'):
         context.config_h = context.config_h + lines
 
@@ -757,10 +747,8 @@ def _LogFailed(context, text, msg):
         lines = text.split('\n')
         if len(lines) and lines[-1] == '':
             lines = lines[:-1]              # remove trailing empty line
-        n = 1
-        for line in lines:
+        for n, line in enumerate(lines, start=1):
             context.Log("%d: %s\n" % (n, line))
-            n = n + 1
     if LogErrorMessages:
         context.Log("Error message: %s\n" % msg)
 

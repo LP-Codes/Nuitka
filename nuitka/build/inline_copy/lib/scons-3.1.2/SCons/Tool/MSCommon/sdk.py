@@ -270,11 +270,7 @@ SupportedSDKList = [
                ),
 ]
 
-SupportedSDKMap = {}
-for sdk in SupportedSDKList:
-    SupportedSDKMap[sdk.version] = sdk
-
-
+SupportedSDKMap = {sdk.version: sdk for sdk in SupportedSDKList}
 # Finding installed SDKs isn't cheap, because it goes not only to the
 # registry but also to the disk to sanity-check that there is, in fact,
 # an SDK installed there and that the registry entry isn't just stale.
@@ -385,8 +381,8 @@ def mssdk_setup_env(env):
         mssdk = get_sdk_by_version(sdk_version)
         if not mssdk:
             mssdk = get_default_sdk()
-            if not mssdk:
-                return
+        if not mssdk:
+            return
         sdk_dir = mssdk.get_sdk_dir()
         debug('mssdk_setup_env: Using MSVS_VERSION:%s'%sdk_dir)
     else:

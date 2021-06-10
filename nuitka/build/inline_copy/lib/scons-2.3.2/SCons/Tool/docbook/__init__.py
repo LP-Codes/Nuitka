@@ -131,21 +131,14 @@ def __ensure_suffix_stem(t, suffix):
 
 def __get_xml_text(root):
     """ Return the text for the given root node (xml.dom.minidom). """
-    txt = ""
-    for e in root.childNodes:
-        if (e.nodeType == e.TEXT_NODE):
-            txt += e.data
-    return txt
+    return "".join(e.data for e in root.childNodes if (e.nodeType == e.TEXT_NODE))
 
 def __create_output_dir(base_dir):
     """ Ensure that the output directory base_dir exists. """
     root, tail = os.path.split(base_dir)
     dir = None
     if tail:
-        if base_dir.endswith('/'):
-            dir = base_dir
-        else:
-            dir = root
+        dir = base_dir if base_dir.endswith('/') else root
     else:
         if base_dir.endswith('/'):
             dir = base_dir
@@ -216,29 +209,28 @@ def __xml_scan(node, env, path, arg):
         return sentity_re.findall(contents)
 
     xsl_file = os.path.join(scriptpath,'utils','xmldepend.xsl')
-    if not has_libxml2 or prefer_xsltproc:
-        if has_lxml and not prefer_xsltproc:
+    if not has_libxml2 and has_lxml and not prefer_xsltproc:
 
-            from lxml import etree
+        from lxml import etree
 
-            xsl_tree = etree.parse(xsl_file)
-            doc = etree.parse(str(node))
-            result = doc.xslt(xsl_tree)
+        xsl_tree = etree.parse(xsl_file)
+        doc = etree.parse(str(node))
+        result = doc.xslt(xsl_tree)
 
+        depfiles = [x.strip() for x in str(result).splitlines() if x.strip() != "" and not x.startswith("<?xml ")]
+        return depfiles
+    elif not has_libxml2 or prefer_xsltproc:
+        # Try to call xsltproc
+        xsltproc = env.subst("$DOCBOOK_XSLTPROC")
+        if xsltproc and xsltproc.endswith('xsltproc'):
+            result = env.backtick(' '.join([xsltproc, xsl_file, str(node)]))
             depfiles = [x.strip() for x in str(result).splitlines() if x.strip() != "" and not x.startswith("<?xml ")]
             return depfiles
         else:
-            # Try to call xsltproc
-            xsltproc = env.subst("$DOCBOOK_XSLTPROC")
-            if xsltproc and xsltproc.endswith('xsltproc'):
-                result = env.backtick(' '.join([xsltproc, xsl_file, str(node)]))
-                depfiles = [x.strip() for x in str(result).splitlines() if x.strip() != "" and not x.startswith("<?xml ")]
-                return depfiles
-            else:
-                # Use simple pattern matching, there is currently no support
-                # for xi:includes...
-                contents = node.get_text_contents()
-                return include_re.findall(contents)
+            # Use simple pattern matching, there is currently no support
+            # for xi:includes...
+            contents = node.get_text_contents()
+            return include_re.findall(contents)
 
     styledoc = libxml2.parseFile(xsl_file)
     style = libxslt.parseStylesheetDoc(styledoc)
@@ -329,15 +321,10 @@ def __build_lxml(target, source, env):
     doc = etree.parse(str(source[0]))
     # Support for additional parameters
     parampass = {}
-    if parampass:
-        result = transform(doc, **parampass)
-    else:
-        result = transform(doc)
-
+    result = transform(doc, **parampass) if parampass else transform(doc)
     try:
-        of = open(str(target[0]), "w")
-        of.write(of.write(etree.tostring(result, pretty_print=True)))
-        of.close()
+        with open(str(target[0]), "w") as of:
+            of.write(of.write(etree.tostring(result, pretty_print=True)))
     except:
         pass
 
@@ -424,9 +411,8 @@ def DocbookEpub(env, target, source=None, *args, **kw):
         was added for different compression formats for separate source nodes.
         """
         zf = zipfile.ZipFile(str(target[0]), 'w')
-        mime_file = open('mimetype', 'w')
-        mime_file.write('application/epub+zip')
-        mime_file.close()
+        with open('mimetype', 'w') as mime_file:
+            mime_file.write('application/epub+zip')
         zf.write(mime_file.name, compress_type = zipfile.ZIP_STORED)
         for s in source:
             if os.path.isfile(str(s)):

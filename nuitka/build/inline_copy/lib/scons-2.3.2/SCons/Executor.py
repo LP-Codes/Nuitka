@@ -405,10 +405,9 @@ class Executor(object):
 
     def my_str(self):
         env = self.get_build_env()
-        return "\n".join([action.genstring(self.get_all_targets(),
+        return "\n".join(action.genstring(self.get_all_targets(),
                                            self.get_all_sources(),
-                                           env)
-                          for action in self.get_action_list()])
+                                           env) for action in self.get_action_list())
 
 
     def __str__(self):
@@ -431,10 +430,13 @@ class Executor(object):
         except KeyError:
             pass
         env = self.get_build_env()
-        result = "".join([action.get_contents(self.get_all_targets(),
-                                              self.get_all_sources(),
-                                              env)
-                          for action in self.get_action_list()])
+        result = "".join(
+            action.get_contents(
+                self.get_all_targets(), self.get_all_sources(), env
+            )
+            for action in self.get_action_list()
+        )
+
         self._memo['get_contents'] = result
         return result
 
@@ -519,9 +521,7 @@ class Executor(object):
         else:
             sourcelist = self.get_all_sources()
         if ignore:
-            idict = {}
-            for i in ignore:
-                idict[i] = 1
+            idict = {i: 1 for i in ignore}
             sourcelist = [s for s in sourcelist if s not in idict]
 
         memo_dict[key] = sourcelist

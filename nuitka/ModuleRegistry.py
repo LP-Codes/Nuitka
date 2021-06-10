@@ -53,11 +53,7 @@ def getRootModules():
 
 
 def hasRootModule(module_name):
-    for module in root_modules:
-        if module.getFullName() == module_name:
-            return True
-
-    return False
+    return any(module.getFullName() == module_name for module in root_modules)
 
 
 def replaceRootModule(old, new):
@@ -112,12 +108,11 @@ def _normalizeModuleFilename(filename):
 
 def getUncompiledModule(module_name, module_filename):
     for uncompiled_module in uncompiled_modules:
-        if module_name == uncompiled_module.getFullName():
-            if areSamePaths(
-                _normalizeModuleFilename(module_filename),
-                _normalizeModuleFilename(uncompiled_module.filename),
-            ):
-                return uncompiled_module
+        if module_name == uncompiled_module.getFullName() and areSamePaths(
+            _normalizeModuleFilename(module_filename),
+            _normalizeModuleFilename(uncompiled_module.filename),
+        ):
+            return uncompiled_module
 
     return None
 
@@ -146,13 +141,13 @@ def addUsedModule(module):
 
 
 def nextModule():
-    if active_modules:
-        result = active_modules.pop()
-        done_modules.add(result)
-
-        return result
-    else:
+    if not active_modules:
         return None
+
+    result = active_modules.pop()
+    done_modules.add(result)
+
+    return result
 
 
 def remainingCount():
@@ -184,13 +179,13 @@ def getModuleFromCodeName(code_name):
 
 
 def getOwnerFromCodeName(code_name):
-    if "$$$" in code_name:
-        module_code_name, _function_code_name = code_name.split("$$$", 1)
-
-        module = getModuleFromCodeName(module_code_name)
-        return module.getFunctionFromCodeName(code_name)
-    else:
+    if "$$$" not in code_name:
         return getModuleFromCodeName(code_name)
+
+    module_code_name, _function_code_name = code_name.split("$$$", 1)
+
+    module = getModuleFromCodeName(module_code_name)
+    return module.getFunctionFromCodeName(code_name)
 
 
 def getModuleByName(module_name):

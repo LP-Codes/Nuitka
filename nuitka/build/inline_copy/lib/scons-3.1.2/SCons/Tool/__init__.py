@@ -381,7 +381,6 @@ def _call_linker_cb(env, callback, args, result=None):
     except (KeyError, TypeError):
         if Verbose:
             print('_call_linker_cb: env["LINKCALLBACKS"][%r] not found or can not be used' % callback)
-        pass
     else:
         if Verbose:
             print('_call_linker_cb: env["LINKCALLBACKS"][%r] found' % callback)
@@ -828,7 +827,11 @@ def LibSymlinksStrFun(target, source, env, *args):
             if cmd: cmd += "\n"
             cmd += "Create symlinks for: %r" % tgt.get_path()
             try:
-                linkstr = ', '.join(["%r->%r" % (k, v) for k, v in StringizeLibSymlinks(symlinks)])
+                linkstr = ', '.join(
+                    "%r->%r" % (k, v)
+                    for k, v in StringizeLibSymlinks(symlinks)
+                )
+
             except (KeyError, ValueError):
                 pass
             else:
@@ -1268,7 +1271,6 @@ def tool_list(platform, env):
         assemblers = ['gas', 'nasm', 'masm']
         fortran_compilers = ['gfortran', 'g77', 'ifort', 'ifl', 'f95', 'f90', 'f77']
         ars = ['ar', ]
-
 # Nuitka: Avoid ununused tools
 #     if not str(platform) == 'win32':
 #         other_plat_tools += ['m4', 'rpm']
@@ -1284,7 +1286,6 @@ def tool_list(platform, env):
         linker = None
         assembler = None
         fortran_compiler = None
-        ar = None
     else:
         # Don't use g++ if the C compiler has built-in C++ support:
         if c_compiler in ('msvc', 'intelc', 'icc'):
@@ -1297,8 +1298,7 @@ def tool_list(platform, env):
 #         fortran_compiler = FindTool(fortran_compilers, env) or fortran_compilers[0]
 #         ar = FindTool(ars, env) or ars[0]
         fortran_compiler = []
-        ar = None
-
+    ar = None
     d_compilers = ['dmd', 'ldc', 'gdc']
 # Nuitka: Avoid ununused tools
 #     d_compiler = FindTool(d_compilers, env) or d_compilers[0]

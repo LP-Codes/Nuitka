@@ -139,12 +139,13 @@ class Variable(getMetaClassBase("Variable")):
 
             # These are not really scopes, just shared uses.
             if (
-                user.isExpressionGeneratorObjectBody()
-                or user.isExpressionCoroutineObjectBody()
-                or user.isExpressionAsyncgenObjectBody()
-            ):
-                if self.owner is user.getParentVariableProvider():
-                    return
+                (
+                    user.isExpressionGeneratorObjectBody()
+                    or user.isExpressionCoroutineObjectBody()
+                    or user.isExpressionAsyncgenObjectBody()
+                )
+            ) and self.owner is user.getParentVariableProvider():
+                return
 
             _variables_in_shared_scopes.add(self)
 
@@ -409,9 +410,8 @@ def updateVariablesFromCollection(old_collection, new_collection, source_ref):
             variable.addTrace(variable_trace)
             touched_variables.add(variable)
 
-            if variable_trace.isLoopTrace():
-                if variable in loop_trace_removal:
-                    loop_trace_removal.remove(variable)
+            if variable_trace.isLoopTrace() and variable in loop_trace_removal:
+                loop_trace_removal.remove(variable)
 
         # Release the memory, and prevent the "active" state from being ever
         # inspected, it's useless now.
@@ -421,14 +421,13 @@ def updateVariablesFromCollection(old_collection, new_collection, source_ref):
     for variable in touched_variables:
         variable.updateUsageState()
 
-    if loop_trace_removal:
-        if new_collection is not None:
-            new_collection.signalChange(
-                "var_usage",
-                source_ref,
-                lambda: "Loop variable '%s' usage ceased."
-                % ",".join(variable.getName() for variable in loop_trace_removal),
-            )
+    if loop_trace_removal and new_collection is not None:
+        new_collection.signalChange(
+            "var_usage",
+            source_ref,
+            lambda: "Loop variable '%s' usage ceased."
+            % ",".join(variable.getName() for variable in loop_trace_removal),
+        )
 
 
 # To detect the Python2 shared variable deletion, that would be a syntax
@@ -446,8 +445,8 @@ def releaseSharedScopeInformation(tree):
     assert tree.isCompiledPythonModule()
 
     global _variables_in_shared_scopes
-    _variables_in_shared_scopes = set(
+    _variables_in_shared_scopes = {
         variable
         for variable in _variables_in_shared_scopes
         if variable.getOwner().getParentModule() is not tree
-    )
+    }

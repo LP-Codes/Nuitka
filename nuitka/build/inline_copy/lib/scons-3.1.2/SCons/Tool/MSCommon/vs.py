@@ -76,7 +76,7 @@ class VisualStudio(object):
         root = 'Software\\'
 
         if is_win64():
-            root = root + 'Wow6432Node\\'
+            root += 'Wow6432Node\\'
         for key in self.hkeys:
             if key=='use_dir':
                 return self.find_vs_dir_by_vc()
@@ -385,11 +385,7 @@ SupportedVSList = [
     ),
 ]
 
-SupportedVSMap = {}
-for vs in SupportedVSList:
-    SupportedVSMap[vs.version] = vs
-
-
+SupportedVSMap = {vs.version: vs for vs in SupportedVSList}
 # Finding installed versions of Visual Studio isn't cheap, because it
 # goes not only to the registry but also to the disk to sanity-check
 # that there is, in fact, a Visual Studio directory there and that the
@@ -573,8 +569,7 @@ def query_versions():
     """Query the system to get available versions of VS. A version is
     considered when a batfile is found."""
     msvs_list = get_installed_visual_studios()
-    versions = [msvs.version for msvs in msvs_list]
-    return versions
+    return [msvs.version for msvs in msvs_list]
 
 # Local Variables:
 # tab-width:4
