@@ -144,10 +144,9 @@ _do_execute_map = {0 : execute_nothing,
 
 def execute_actions_str(obj):
     env = obj.get_build_env()
-    return "\n".join([action.genstring(obj.get_all_targets(),
+    return "\n".join(action.genstring(obj.get_all_targets(),
                                        obj.get_all_sources(),
-                                       env)
-                      for action in obj.get_action_list()])
+                                       env) for action in obj.get_action_list())
 
 def execute_null_str(obj):
     return ''
@@ -538,9 +537,7 @@ class Executor(object, with_metaclass(NoSlotsPyPy)):
         else:
             sourcelist = self.get_all_sources()
         if ignore:
-            idict = {}
-            for i in ignore:
-                idict[i] = 1
+            idict = {i: 1 for i in ignore}
             sourcelist = [s for s in sourcelist if s not in idict]
 
         memo_dict[key] = sourcelist

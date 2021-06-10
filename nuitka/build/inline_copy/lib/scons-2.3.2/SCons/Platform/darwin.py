@@ -56,12 +56,11 @@ def generate(env):
 
     for file in filelist:
         if os.path.isfile(file):
-            f = open(file, 'r')
-            lines = f.readlines()
-            for line in lines:
-                if line:
-                    env.AppendENVPath('PATHOSX', line.strip('\n'))
-            f.close()
+            with open(file, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if line:
+                        env.AppendENVPath('PATHOSX', line.strip('\n'))
 
 # Local Variables:
 # tab-width:4

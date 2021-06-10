@@ -120,7 +120,7 @@ def match_splitext(path, suffixes = []):
     if suffixes:
         matchsuf = [S for S in suffixes if path[-len(S):] == S]
         if matchsuf:
-            suf = max([(len(_f),_f) for _f in matchsuf])[1]
+            suf = max((len(_f),_f) for _f in matchsuf)[1]
             return [path[:-len(suf)], path[-len(suf):]]
     return SCons.Util.splitext(path)
 
@@ -460,10 +460,7 @@ class BuilderBase(object):
     def splitext(self, path, env=None):
         if not env:
             env = self.env
-        if env:
-            suffixes = self.src_suffixes(env)
-        else:
-            suffixes = []
+        suffixes = self.src_suffixes(env) if env else []
         return match_splitext(path, suffixes)
 
     def _adjustixes(self, files, pre, suf, ensure_suffix=False):
@@ -549,7 +546,7 @@ class BuilderBase(object):
 
         if self.single_source and len(source) > 1 and target is None:
             result = []
-            if target is None: target = [None]*len(source)
+            target = [None]*len(source)
             for tgt, src in zip(target, source):
                 if tgt is not None:
                     tgt = [tgt]
@@ -651,7 +648,7 @@ class BuilderBase(object):
         return self._execute(env, target, source, OverrideWarner(kw), ekw)
 
     def adjust_suffix(self, suff):
-        if suff and not suff[0] in [ '.', '_', '$' ]:
+        if suff and suff[0] not in ['.', '_', '$']:
             return '.' + suff
         return suff
 
@@ -846,10 +843,8 @@ class BuilderBase(object):
         (This value isn't cached because there may be changes in a
         src_builder many levels deep that we can't see.)
         """
-        sdict = {}
         suffixes = self.subst_src_suffixes(env)
-        for s in suffixes:
-            sdict[s] = 1
+        sdict = {s: 1 for s in suffixes}
         for builder in self.get_src_builders(env):
             for s in builder.src_suffixes(env):
                 if s not in sdict:

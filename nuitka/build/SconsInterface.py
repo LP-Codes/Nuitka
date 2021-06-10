@@ -69,15 +69,14 @@ def _getSconsBinaryCall():
             "ignore",  # Disable Python warnings in case of debug Python.
             getExternalUsePath(inline_path),
         ]
-    else:
-        scons_path = Execution.getExecutablePath("scons")
+    scons_path = Execution.getExecutablePath("scons")
 
-        if scons_path is not None:
-            return [scons_path]
-        else:
-            sys.exit(
-                "Error, the inline copy of scons is not present, nor scons in the system path."
-            )
+    if scons_path is not None:
+        return [scons_path]
+    else:
+        sys.exit(
+            "Error, the inline copy of scons is not present, nor scons in the system path."
+        )
 
 
 def _getPythonSconsExePathWindows():
@@ -177,9 +176,12 @@ def _setupSconsEnvironment():
     """
 
     # For Python2, avoid unicode working directory.
-    if Utils.isWin32Windows() and python_version < 300:
-        if os.getcwd() != os.getcwdu():
-            os.chdir(getWindowsShortPathName(os.getcwdu()))
+    if (
+        Utils.isWin32Windows()
+        and python_version < 300
+        and os.getcwd() != os.getcwdu()
+    ):
+        os.chdir(getWindowsShortPathName(os.getcwdu()))
 
     if Utils.isWin32Windows():
         # On Win32, we use the Python.DLL path for some things. We pass it

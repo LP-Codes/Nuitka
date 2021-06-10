@@ -170,9 +170,7 @@ class TempFileMunge(object):
         except ValueError:
             maxline = 2048
 
-        length = 0
-        for c in cmd:
-            length += len(c)
+        length = sum(len(c) for c in cmd)
         if length <= maxline:
             return self.cmd
 
@@ -231,8 +229,7 @@ def Platform(name = platform_default()):
     """Select a canned Platform specification.
     """
     module = platform_module(name)
-    spec = PlatformSpec(name, module.generate)
-    return spec
+    return PlatformSpec(name, module.generate)
 
 # Local Variables:
 # tab-width:4

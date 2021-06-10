@@ -77,8 +77,12 @@ def shlib_emitter(target, source, env):
 
     if not dll:
         raise SCons.Errors.UserError(
-            "A shared library should have exactly one target with the suffix: %s Target(s) are:%s" % \
-            (env.subst("$SHLIBSUFFIX"), ",".join([str(t) for t in target])))
+            (
+                "A shared library should have exactly one target with the suffix: %s Target(s) are:%s"
+                % (env.subst("$SHLIBSUFFIX"), ",".join(str(t) for t in target))
+            )
+        )
+
 
     if not no_import_lib and \
             not env.FindIxes(target, 'LIBPREFIX', 'LIBSUFFIX'):
@@ -129,9 +133,7 @@ def find_version_specific_mingw_paths():
 
     Use glob'ing to find such and add to mingw_paths
     """
-    new_paths = glob.glob(r"C:\mingw-w64\*\mingw64\bin")
-
-    return new_paths
+    return glob.glob(r"C:\mingw-w64\*\mingw64\bin")
 
 
 def generate(env):

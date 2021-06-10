@@ -132,16 +132,15 @@ def copyFuncVersionedLib(dest, source, env):
 
     if os.path.isdir(source):
         raise SCons.Errors.UserError("cannot install directory `%s' as a version library" % str(source) )
-    else:
-        # remove the link if it is already there
-        try:
-            os.remove(dest)
-        except:
-            pass
-        shutil.copy2(source, dest)
-        st = os.stat(source)
-        os.chmod(dest, stat.S_IMODE(st[stat.ST_MODE]) | stat.S_IWRITE)
-        versionedLibLinks(dest, source, env)
+    # remove the link if it is already there
+    try:
+        os.remove(dest)
+    except:
+        pass
+    shutil.copy2(source, dest)
+    st = os.stat(source)
+    os.chmod(dest, stat.S_IMODE(st[stat.ST_MODE]) | stat.S_IWRITE)
+    versionedLibLinks(dest, source, env)
 
     return 0
 
@@ -269,10 +268,7 @@ def stringFunc(target, source, env):
         return env.subst_target_source(installstr, 0, target, source)
     target = str(target[0])
     source = str(source[0])
-    if os.path.isdir(source):
-        type = 'directory'
-    else:
-        type = 'file'
+    type = 'directory' if os.path.isdir(source) else 'file'
     return 'Install %s: "%s" as "%s"' % (type, source, target)
 
 #

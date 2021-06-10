@@ -111,7 +111,7 @@ def find_versions():
                 except SCons.Util.RegError:
                     pass
 
-                i = i + 1
+                i += 1
 
         except SCons.Util.RegError:
             pass

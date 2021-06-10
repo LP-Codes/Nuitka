@@ -176,11 +176,9 @@ def getFileReferenceMode():
             otherwise original is kept.
     """
     if options.file_reference_mode is None:
-        value = "runtime" if shallMakeModule() or isStandaloneMode() else "original"
+        return "runtime" if shallMakeModule() or isStandaloneMode() else "original"
     else:
-        value = options.file_reference_mode
-
-    return value
+        return options.file_reference_mode
 
 
 def shallMakeModule():
@@ -226,45 +224,39 @@ def _splitShellPattern(value):
 def getShallFollowInNoCase():
     """ *list*, items of "--nofollow-import-to=" / "--recurse-not-to="
     """
-    return sum([_splitShellPattern(x) for x in options.recurse_not_modules], [])
+    return sum((_splitShellPattern(x) for x in options.recurse_not_modules), [])
 
 
 def getShallFollowModules():
     """ *list*, items of "--follow-import-to=" / "--recurse-to="
     """
-    return sum(
-        [
-            _splitShellPattern(x)
-            for x in options.recurse_modules
-            + options.include_modules
-            + options.include_packages
-        ],
-        [],
-    )
+    return sum((_splitShellPattern(x) for x in options.recurse_modules
+                + options.include_modules
+                + options.include_packages), [])
 
 
 def getShallFollowExtra():
     """ *list*, items of "--include-plugin-directory="
     """
-    return sum([_splitShellPattern(x) for x in options.recurse_extra], [])
+    return sum((_splitShellPattern(x) for x in options.recurse_extra), [])
 
 
 def getShallFollowExtraFilePatterns():
     """ *list*, items of "--include-plugin-files="
     """
-    return sum([_splitShellPattern(x) for x in options.recurse_extra_files], [])
+    return sum((_splitShellPattern(x) for x in options.recurse_extra_files), [])
 
 
 def getMustIncludeModules():
     """ *list*, items of "--include-module="
     """
-    return sum([_splitShellPattern(x) for x in options.include_modules], [])
+    return sum((_splitShellPattern(x) for x in options.include_modules), [])
 
 
 def getMustIncludePackages():
     """ *list*, items of "--include-package="
     """
-    return sum([_splitShellPattern(x) for x in options.include_packages], [])
+    return sum((_splitShellPattern(x) for x in options.include_packages), [])
 
 
 def shallWarnImplicitRaises():
@@ -333,7 +325,7 @@ def getOutputPath(path):
 def getOutputDir():
     """ *str*, value of "--output-dir" or "."
     """
-    return options.output_dir if options.output_dir else "."
+    return options.output_dir or "."
 
 
 def getPositionalArgs():
@@ -372,7 +364,7 @@ def shallUseStaticLibPython():
     return (
         os.path.exists(os.path.join(sys.prefix, "conda-meta"))
         and not Utils.isWin32Windows()
-        and not Utils.getOS() == "Darwin"
+        and Utils.getOS() != "Darwin"
     )
 
 

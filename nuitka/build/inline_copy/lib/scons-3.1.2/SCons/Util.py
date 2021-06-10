@@ -180,15 +180,15 @@ class NodeList(UserList):
         """
 #        return self.__class__(self.data[index])
 
-        if isinstance(index, slice):
-            # Expand the slice object using range()
-            # limited by number of items in self.data
-            indices = index.indices(len(self.data))
-            return self.__class__([self[x] for x in
-                    range(*indices)])
-        else:
+        if not isinstance(index, slice):
             # Return one item of the tart
             return self.data[index]
+
+        # Expand the slice object using range()
+        # limited by number of items in self.data
+        indices = index.indices(len(self.data))
+        return self.__class__([self[x] for x in
+                range(*indices)])
 
 
 _get_env_var = re.compile(r'^\$([_a-zA-Z]\w*|{[_a-zA-Z]\w*})$')
@@ -199,14 +199,14 @@ def get_environment_var(varstr):
     If so, return that variable with no decorations ("FOO").
     If not, return None."""
     mo=_get_env_var.match(to_String(varstr))
-    if mo:
-        var = mo.group(1)
-        if var[0] == '{':
-            return var[1:-1]
-        else:
-            return var
-    else:
+    if not mo:
         return None
+
+    var = mo.group(1)
+    if var[0] == '{':
+        return var[1:-1]
+    else:
+        return var
 
 class DisplayEngine(object):
     print_it = True
@@ -249,13 +249,7 @@ def render_tree(root, child_func, prune=0, margin=[0], visited=None):
         visited = {}
 
     children = child_func(root)
-    retval = ""
-    for pipe in margin[:-1]:
-        if pipe:
-            retval = retval + "| "
-        else:
-            retval = retval + "  "
-
+    retval = "".join("| " if pipe else "  " for pipe in margin[:-1])
     if rname in visited:
         return retval + "+-[" + rname + "]\n"
 
@@ -266,7 +260,7 @@ def render_tree(root, child_func, prune=0, margin=[0], visited=None):
 
     for i in range(len(children)):
         margin.append(i < len(children)-1)
-        retval = retval + render_tree(children[i], child_func, prune, margin, visited)
+        retval += render_tree(children[i], child_func, prune, margin, visited)
         margin.pop()
 
     return retval
@@ -485,7 +479,7 @@ def to_String_for_subst(s,
     if isinstance(s, BaseStringTypes):
         return s
     elif isinstance(s, SequenceTypes):
-        return ' '.join([to_String_for_subst(e) for e in s])
+        return ' '.join(to_String_for_subst(e) for e in s)
     elif isinstance(s, UserString):
         # s.data can only be either a unicode or a regular
         # string. Please see the UserString initializer.
@@ -550,15 +544,14 @@ def semi_deepcopy(x):
     copier = _semi_deepcopy_dispatch.get(type(x))
     if copier:
         return copier(x)
-    else:
-        if hasattr(x, '__semi_deepcopy__') and callable(x.__semi_deepcopy__):
-            return x.__semi_deepcopy__()
-        elif isinstance(x, UserDict):
-            return x.__class__(semi_deepcopy_dict(x))
-        elif isinstance(x, UserList):
-            return x.__class__(_semi_deepcopy_list(x))
+    if hasattr(x, '__semi_deepcopy__') and callable(x.__semi_deepcopy__):
+        return x.__semi_deepcopy__()
+    elif isinstance(x, UserDict):
+        return x.__class__(semi_deepcopy_dict(x))
+    elif isinstance(x, UserList):
+        return x.__class__(_semi_deepcopy_list(x))
 
-        return x
+    return x
 
 
 class Proxy(object):
@@ -853,6 +846,7 @@ def PrependPath(oldpath, newpath, sep = os.pathsep,
     if canonicalize:
         newpaths=list(map(canonicalize, newpaths))
 
+    normpaths = []
     if not delete_existing:
         # First uniquify the old paths, making sure to
         # preserve the first instance (in Unix/Linux,
@@ -860,7 +854,6 @@ def PrependPath(oldpath, newpath, sep = os.pathsep,
         # Then insert the new paths at the head of the list
         # if they're not already in the normpaths list.
         result = []
-        normpaths = []
         for path in paths:
             if not path:
                 continue
@@ -881,7 +874,6 @@ def PrependPath(oldpath, newpath, sep = os.pathsep,
     else:
         newpaths = newpaths + paths # prepend new paths
 
-        normpaths = []
         paths = []
         # now we add them only if they are unique
         for path in newpaths:
@@ -934,6 +926,7 @@ def AppendPath(oldpath, newpath, sep = os.pathsep,
     if canonicalize:
         newpaths=list(map(canonicalize, newpaths))
 
+    normpaths = []
     if not delete_existing:
         # add old paths to result, then
         # add new paths if not already present
@@ -941,7 +934,6 @@ def AppendPath(oldpath, newpath, sep = os.pathsep,
         # but it's not clear hashing the strings would be faster
         # than linear searching these typically short lists.)
         result = []
-        normpaths = []
         for path in paths:
             if not path:
                 continue
@@ -961,7 +953,6 @@ def AppendPath(oldpath, newpath, sep = os.pathsep,
         newpaths = paths + newpaths # append new paths
         newpaths.reverse()
 
-        normpaths = []
         paths = []
         # now we add them only if they are unique
         for path in newpaths:
@@ -991,10 +982,7 @@ def AddPathIfNotExists(env_dict, key, path, sep=os.pathsep):
             is_list = 0
         if os.path.normcase(path) not in list(map(os.path.normcase, paths)):
             paths = [ path ] + paths
-        if is_list:
-            env_dict[key] = paths
-        else:
-            env_dict[key] = sep.join(paths)
+        env_dict[key] = paths if is_list else sep.join(paths)
     except KeyError:
         env_dict[key] = path
 
@@ -1245,8 +1233,7 @@ class LogicalLines(object):
         self.fileobj = fileobj
 
     def readlines(self):
-        result = [l for l in logical_lines(self.fileobj)]
-        return result
+        return [l for l in logical_lines(self.fileobj)]
 
 
 class UniqueList(UserList):
@@ -1371,11 +1358,7 @@ def make_path_relative(path):
         drive_s,path = os.path.splitdrive(path)
 
         import re
-        if not drive_s:
-            path=re.compile("/*(.*)").findall(path)[0]
-        else:
-            path=path[1:]
-
+        path = re.compile("/*(.*)").findall(path)[0] if not drive_s else path[1:]
     assert( not os.path.isabs( path ) ), path
     return path
 

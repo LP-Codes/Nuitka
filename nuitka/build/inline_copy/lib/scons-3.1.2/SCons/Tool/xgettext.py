@@ -77,8 +77,7 @@ class _CmdRunner(object):
         comstr = self.commandstr
         if env.subst(comstr, target=target, source=source) == "":
             comstr = self.command
-        s = env.subst(comstr, target=target, source=source)
-        return s
+        return env.subst(comstr, target=target, source=source)
 
 
 #############################################################################
@@ -149,15 +148,14 @@ def _update_pot_file(target, source, env):
         # Print message employing SCons.Action.Action for that.
         msg = "Writing " + repr(str(target[0])) + " (" + explain + ")"
         env.Execute(SCons.Action.Action(nop, msg))
-        f = open(str(target[0]), "w")
-        f.write(new_content)
-        f.close()
-        return 0
+        with open(str(target[0]), "w") as f:
+            f.write(new_content)
     else:
         # Print message employing SCons.Action.Action for that.
         msg = "Not writing " + repr(str(target[0])) + " (" + explain + ")"
         env.Execute(SCons.Action.Action(nop, msg))
-        return 0
+
+    return 0
 
 
 #############################################################################
@@ -186,10 +184,7 @@ def _scan_xgettext_from_files(target, source, env, files=None, path=None):
         files = [files]
 
     if path is None:
-        if 'XGETTEXTPATH' in env:
-            path = env['XGETTEXTPATH']
-        else:
-            path = []
+        path = env['XGETTEXTPATH'] if 'XGETTEXTPATH' in env else []
     if not SCons.Util.is_List(path):
         path = [path]
 

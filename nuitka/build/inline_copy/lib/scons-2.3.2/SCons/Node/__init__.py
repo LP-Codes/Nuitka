@@ -578,8 +578,7 @@ class Node(object):
         #scanner = scanner.select(self)
 
         nodes = [self]
-        seen = {}
-        seen[self] = 1
+        seen = {self: 1}
         deps = []
         while nodes:
             n = nodes.pop(0)
@@ -706,8 +705,7 @@ class Node(object):
     BuildInfo = BuildInfoBase
 
     def new_ninfo(self):
-        ninfo = self.NodeInfo(self)
-        return ninfo
+        return self.NodeInfo(self)
 
     def get_ninfo(self):
         try:
@@ -717,8 +715,7 @@ class Node(object):
             return self.ninfo
 
     def new_binfo(self):
-        binfo = self.BuildInfo(self)
-        return binfo
+        return self.BuildInfo(self)
 
     def get_binfo(self):
         """
@@ -749,17 +746,14 @@ class Node(object):
             binfo.bactsig = SCons.Util.MD5signature(executor.get_contents())
 
         if self._specific_sources:
-            sources = []
-            for s in self.sources:
-                if s not in ignore_set:
-                    sources.append(s)
+            sources = [s for s in self.sources if s not in ignore_set]
         else:
             sources = executor.get_unignored_sources(self, self.ignore)
         seen = set()
         bsources = []
         bsourcesigs = []
         for s in sources:
-            if not s in seen:
+            if s not in seen:
                 seen.add(s)
                 bsources.append(s)
                 bsourcesigs.append(s.get_ninfo())
@@ -767,18 +761,12 @@ class Node(object):
         binfo.bsourcesigs = bsourcesigs
 
         depends = self.depends
-        dependsigs = []
-        for d in depends:
-            if d not in ignore_set:
-                dependsigs.append(d.get_ninfo())
+        dependsigs = [d.get_ninfo() for d in depends if d not in ignore_set]
         binfo.bdepends = depends
         binfo.bdependsigs = dependsigs
 
         implicit = self.implicit or []
-        implicitsigs = []
-        for i in implicit:
-            if i not in ignore_set:
-                implicitsigs.append(i.get_ninfo())
+        implicitsigs = [i.get_ninfo() for i in implicit if i not in ignore_set]
         binfo.bimplicit = implicit
         binfo.bimplicitsigs = implicitsigs
 
@@ -969,10 +957,7 @@ class Node(object):
         if self.ignore_set:
             iter = chain.from_iterable(filter(None, [self.sources, self.depends, self.implicit]))
 
-            children = []
-            for i in iter:
-                if i not in self.ignore_set:
-                    children.append(i)
+            children = [i for i in iter if i not in self.ignore_set]
         else:
             children = self.all_children(scan=0)
 
@@ -1107,9 +1092,7 @@ class Node(object):
                 if t: Trace(': bactsig %s != newsig %s' % (bi.bactsig, newsig))
                 result = True
 
-        if not result:
-            if t: Trace(': up to date')
-
+        if not result and t: Trace(': up to date')
         if t: Trace('\n')
 
         return result
@@ -1134,7 +1117,7 @@ class Node(object):
             s = kid.get_state()
             if s and (not state or s > state):
                 state = s
-        return (state == 0 or state == SCons.Node.up_to_date)
+        return state in [0, SCons.Node.up_to_date]
 
     def is_literal(self):
         """Always pass the string representation of a Node to
@@ -1353,10 +1336,7 @@ class Walker(object):
                 node = self.stack.pop()
                 del self.history[node]
                 if node:
-                    if self.stack:
-                        parent = self.stack[-1]
-                    else:
-                        parent = None
+                    parent = self.stack[-1] if self.stack else None
                     self.eval_func(node, parent)
                 return node
         return None

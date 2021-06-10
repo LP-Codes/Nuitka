@@ -117,7 +117,7 @@ def normalize_env(env, keys, force=False):
             normenv[k] = copy.deepcopy(env[k]).encode('mbcs')
 
         for k in keys:
-            if k in os.environ and (force or not k in normenv):
+            if k in os.environ and (force or k not in normenv):
                 normenv[k] = os.environ[k].encode('mbcs')
 
     # This shouldn't be necessary, since the default environment should include system32,
@@ -184,17 +184,15 @@ def get_output(vcbat, args = None, env = None):
 #     debug('get_output():stdout:%s'%stdout)
 #     debug('get_output():stderr:%s'%stderr)
 
-    if stderr:
-        if "wmic" not in stderr:
-            # TODO: find something better to do with stderr;
-            # this at least prevents errors from getting swallowed.
-            import sys
-            sys.stderr.write(stderr)
+    if stderr and "wmic" not in stderr:
+        # TODO: find something better to do with stderr;
+        # this at least prevents errors from getting swallowed.
+        import sys
+        sys.stderr.write(stderr)
     if popen.wait() != 0:
         raise IOError(stderr.decode("mbcs"))
 
-    output = stdout.decode("mbcs")
-    return output
+    return stdout.decode("mbcs")
 
 def parse_output(output, keep = ("INCLUDE", "LIB", "LIBPATH", "PATH")):
     # dkeep is a dict associating key: path_list, where key is one item from

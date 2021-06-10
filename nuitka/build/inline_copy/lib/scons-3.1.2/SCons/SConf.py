@@ -104,27 +104,23 @@ _ac_config_hs   = {}  # all config.h files created in this build
 sconf_global = None   # current sconf object
 
 def _createConfigH(target, source, env):
-    t = open(str(target[0]), "w")
-    defname = re.sub('[^A-Za-z0-9_]', '_', str(target[0]).upper())
-    t.write("""#ifndef %(DEFNAME)s_SEEN
+    with open(str(target[0]), "w") as t:
+        defname = re.sub('[^A-Za-z0-9_]', '_', str(target[0]).upper())
+        t.write("""#ifndef %(DEFNAME)s_SEEN
 #define %(DEFNAME)s_SEEN
 
 """ % {'DEFNAME' : defname})
-    t.write(source[0].get_contents().decode())
-    t.write("""
+        t.write(source[0].get_contents().decode())
+        t.write("""
 #endif /* %(DEFNAME)s_SEEN */
 """ % {'DEFNAME' : defname})
-    t.close()
 
 def _stringConfigH(target, source, env):
     return "scons: Configure: creating " + str(target[0])
 
 
 def NeedConfigHBuilder():
-    if len(_ac_config_hs) == 0:
-       return False
-    else:
-       return True
+    return len(_ac_config_hs) != 0
 
 def CreateConfigHBuilder(env):
     """Called if necessary just before the building targets phase begins."""
@@ -163,9 +159,8 @@ class ConfigureCacheError(SConfError):
 
 # define actions for building text files
 def _createSource( target, source, env ):
-    fd = open(str(target[0]), "w")
-    fd.write(source[0].get_contents().decode())
-    fd.close()
+    with open(str(target[0]), "w") as fd:
+        fd.write(source[0].get_contents().decode())
 def _stringSource( target, source, env ):
     return (str(target[0]) + ' <-\n  |' +
             source[0].get_contents().decode().replace( '\n', "\n  |" ) )
@@ -278,8 +273,9 @@ class SConfBuildTask(SCons.Taskmaster.AlwaysTask):
                     t.set_state(SCons.Node.up_to_date)
                     if T: Trace(': set_state(up_to-date)')
                 else:
-                    if T: Trace(': get_state() %s' % t.get_state())
-                    if T: Trace(': changed() %s' % t.changed())
+                    if T:
+                        Trace(': get_state() %s' % t.get_state())
+                        Trace(': changed() %s' % t.changed())
                     if (t.get_state() != SCons.Node.up_to_date and t.changed()):
                         changed = True
                     if T: Trace(': changed %s' % changed)
@@ -297,8 +293,6 @@ class SConfBuildTask(SCons.Taskmaster.AlwaysTask):
     def execute(self):
         if not self.targets[0].has_builder():
             return
-
-        sconf = sconf_global
 
         is_up_to_date, cached_error, cachable = self.collect_node_states()
 
@@ -322,6 +316,8 @@ class SConfBuildTask(SCons.Taskmaster.AlwaysTask):
         else:
             # note stdout and stderr are the same here
             s = sys.stdout = sys.stderr = Streamer(sys.stdout)
+            sconf = sconf_global
+
             try:
                 env = self.targets[0].get_build_env()
                 env['PSTDOUT'] = env['PSTDERR'] = s
@@ -521,19 +517,18 @@ class SConfBase(object):
                 n.attributes = SCons.Node.Node.Attrs()
             n.attributes.keep_targetinfo = 1
 
-            if True:
-                # Some checkers have intermediate files (for example anything that compiles a c file into a program to run
-                # Those files need to be set to not release their target info, otherwise taskmaster will throw a
-                # Nonetype not callable
-                for c in n.children(scan=False):
-                    # Keep debug code here.
-                    # print("Checking [%s] for builders and then setting keep_targetinfo"%c)
-                    if  c.has_builder():
-                        n.store_info = 0
-                        if not hasattr(c, 'attributes'):
-                            c.attributes = SCons.Node.Node.Attrs()
-                        c.attributes.keep_targetinfo = 1
-                    # pass
+            # Some checkers have intermediate files (for example anything that compiles a c file into a program to run
+            # Those files need to be set to not release their target info, otherwise taskmaster will throw a
+            # Nonetype not callable
+            for c in n.children(scan=False):
+                # Keep debug code here.
+                # print("Checking [%s] for builders and then setting keep_targetinfo"%c)
+                if  c.has_builder():
+                    n.store_info = 0
+                    if not hasattr(c, 'attributes'):
+                        c.attributes = SCons.Node.Node.Attrs()
+                    c.attributes.keep_targetinfo = 1
+                # pass
 
         ret = 1
 
@@ -547,8 +542,7 @@ class SConfBase(object):
             jobs.run()
             for n in nodes:
                 state = n.get_state()
-                if (state != SCons.Node.executed and
-                    state != SCons.Node.up_to_date):
+                if state not in [SCons.Node.executed, SCons.Node.up_to_date]:
                     # the node could not be built. we return 0 in this case
                     ret = 0
         finally:
@@ -623,11 +617,7 @@ class SConfBase(object):
             self.env['SPAWN'] = save_spawn
 
         _ac_build_counter = _ac_build_counter + 1
-        if result:
-            self.lastTarget = nodes[0]
-        else:
-            self.lastTarget = None
-
+        self.lastTarget = nodes[0] if result else None
         return result
 
     def TryAction(self, action, text = None, extension = ""):
@@ -668,15 +658,15 @@ class SConfBase(object):
         is saved in self.lastTarget (for further processing).
         """
         ok = self.TryLink(text, extension)
-        if( ok ):
+        if ( ok ):
             prog = self.lastTarget
             pname = prog.get_internal_path()
             output = self.confdir.File(os.path.basename(pname)+'.out')
             node = self.env.Command(output, prog, [ [ pname, ">", "${TARGET}"] ])
             ok = self.BuildNodes(node)
-            if ok:
-                outputStr = SCons.Util.to_str(output.get_contents())
-                return( 1, outputStr)
+        if ok:
+            outputStr = SCons.Util.to_str(output.get_contents())
+            return( 1, outputStr)
         return (0, "")
 
     class TestWrapper(object):
@@ -708,11 +698,10 @@ class SConfBase(object):
 
     def _createDir( self, node ):
         dirName = str(node)
-        if dryrun:
-            if not os.path.isdir( dirName ):
+        if not os.path.isdir( dirName ):
+            if dryrun:
                 raise ConfigureDryRunError(dirName)
-        else:
-            if not os.path.isdir( dirName ):
+            else:
                 os.makedirs( dirName )
 
     def _startup(self):
@@ -929,16 +918,16 @@ class CheckContext(object):
 
 
 def SConf(*args, **kw):
-    if kw.get(build_type, True):
-        kw['_depth'] = kw.get('_depth', 0) + 1
-        for bt in build_types:
-            try:
-                del kw[bt]
-            except KeyError:
-                pass
-        return SConfBase(*args, **kw)
-    else:
+    if not kw.get(build_type, True):
         return SCons.Util.Null()
+
+    kw['_depth'] = kw.get('_depth', 0) + 1
+    for bt in build_types:
+        try:
+            del kw[bt]
+        except KeyError:
+            pass
+    return SConfBase(*args, **kw)
 
 
 def CheckFunc(context, function_name, header = None, language = None):
@@ -971,15 +960,13 @@ def createIncludesFromHeaders(headers, leaveLast, include_quotes = '""'):
     # statements from the specified header (list)
     if not SCons.Util.is_List(headers):
         headers = [headers]
-    l = []
     if leaveLast:
         lastHeader = headers[-1]
         headers = headers[:-1]
     else:
         lastHeader = None
-    for s in headers:
-        l.append("#include %s%s%s\n"
-                 % (include_quotes[0], s, include_quotes[1]))
+    l = ["#include %s%s%s\n"
+                 % (include_quotes[0], s, include_quotes[1]) for s in headers]
     return ''.join(l), lastHeader
 
 def CheckHeader(context, header, include_quotes = '<>', language = None):

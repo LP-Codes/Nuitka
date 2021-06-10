@@ -419,10 +419,8 @@ int main(void) {
     _YesNoResult(context, ret, "HAVE_" + type_name, text,
                  "Define to 1 if the system has the type `%s'." % type_name)
     if ret and fallback and context.headerfilename:
-        f = open(context.headerfilename, "a")
-        f.write("typedef %s %s;\n" % (fallback, type_name))
-        f.close()
-
+        with open(context.headerfilename, "a") as f:
+            f.write("typedef %s %s;\n" % (fallback, type_name))
     return ret
 
 def CheckTypeSize(context, type_name, header = None, language = None, expect = None):
@@ -666,10 +664,7 @@ return 0;
             l = [ lib_name ]
             if extra_libs:
                 l.extend(extra_libs)
-            if append:
-                oldLIBS = context.AppendLIBS(l)
-            else:
-                oldLIBS = context.PrependLIBS(l)
+            oldLIBS = context.AppendLIBS(l) if append else context.PrependLIBS(l)
             sym = "HAVE_LIB" + lib_name
         else:
             oldLIBS = -1
@@ -756,15 +751,10 @@ def _Have(context, key, have, comment = None):
     else:
         line = "#define %s %s\n" % (key_up, str(have))
 
-    if comment is not None:
-        lines = "\n/* %s */\n" % comment + line
-    else:
-        lines = "\n" + line
-
+    lines = "\n/* %s */\n" % comment + line if comment is not None else "\n" + line
     if context.headerfilename:
-        f = open(context.headerfilename, "a")
-        f.write(lines)
-        f.close()
+        with open(context.headerfilename, "a") as f:
+            f.write(lines)
     elif hasattr(context,'config_h'):
         context.config_h = context.config_h + lines
 
@@ -779,10 +769,8 @@ def _LogFailed(context, text, msg):
         lines = text.split('\n')
         if len(lines) and lines[-1] == '':
             lines = lines[:-1]              # remove trailing empty line
-        n = 1
-        for line in lines:
+        for n, line in enumerate(lines, start=1):
             context.Log("%d: %s\n" % (n, line))
-            n = n + 1
     if LogErrorMessages:
         context.Log("Error message: %s\n" % msg)
 

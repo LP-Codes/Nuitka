@@ -586,7 +586,6 @@ def parse_strings(data, counter, l):
                 l[counter] = b(data[i: i + len_ * 2]).decode('utf-16le')
             except UnicodeDecodeError:
                 error_count += 1
-                pass
             if error_count >= 3:
                 break
             i += len_ * 2
@@ -613,10 +612,7 @@ def set_flags(obj, flag_field, flags):
     """
 
     for flag, value in flags:
-        if value & flag_field:
-            obj.__dict__[flag] = True
-        else:
-            obj.__dict__[flag] = False
+        obj.__dict__[flag] = bool(value & flag_field)
 
 
 def power_of_two(val):
@@ -633,9 +629,7 @@ if not PY3:
         values = [
             ('\\u{0:04x}' if ord(err.object[i]) > 255 else '\\x{0:02x}',
              ord(err.object[i])) for i in range(start,end)]
-        return (
-            u"".join([elm[0].format(elm[1]) for elm in values]),
-            end)
+        return u"".join(elm[0].format(elm[1]) for elm in values), end
     import codecs
     codecs.register_error('backslashreplace_', handler)
     def b(x):
@@ -736,7 +730,7 @@ class Dump(object):
     """Convenience class for dumping the PE information."""
 
     def __init__(self):
-        self.text = list()
+        self.text = []
 
     def add_lines(self, txt, indent=0):
         """Adds a list of lines.
@@ -793,15 +787,12 @@ class Structure(object):
         self.__format__ = '<'
         self.__keys__ = []
         self.__format_length__ = 0
-        self.__field_offsets__ = dict()
+        self.__field_offsets__ = {}
         self.__unpacked_data_elms__ = []
         self.__set_format__(format[1])
         self.__all_zeroes__ = False
         self.__file_offset__ = file_offset
-        if name:
-            self.name = name
-        else:
-            self.name = format[0]
+        self.name = name or format[0]
 
 
     def __get_format__(self):
@@ -831,8 +822,8 @@ class Structure(object):
         _t = t
         if t[0] in string.digits:
             # extract the count
-            count = int( ''.join([d for d in t if d in string.digits]) )
-            _t = ''.join([d for d in t if d not in string.digits])
+            count = int(''.join(d for d in t if d in string.digits))
+            _t = ''.join(d for d in t if d not in string.digits)
         return STRUCT_SIZEOF_TYPES[_t] * count
 
     def __set_format__(self, format):
@@ -918,15 +909,13 @@ class Structure(object):
         return '\n'.join( self.dump() )
 
     def __repr__(self):
-        return '<Structure: %s>' % (' '.join( [' '.join(s.split()) for s in self.dump()] ))
+        return '<Structure: %s>' % ' '.join(' '.join(s.split()) for s in self.dump())
 
 
     def dump(self, indentation=0):
         """Returns a string representation of the structure."""
 
-        dump = []
-
-        dump.append('[{0}]'.format(self.name))
+        dump = ['[{0}]'.format(self.name)]
 
         printable_bytes = [ord(i) for i in string.printable if i not in string.whitespace]
 
@@ -937,11 +926,8 @@ class Structure(object):
 
                 val = getattr(self, key)
                 if isinstance(val, (int, long)):
-                    if key.startswith('Signature_'):
-                        val_str = '%-8X' % (val)
-                    else:
-                        val_str = '0x%-8X' % (val)
-                    if key == 'TimeDateStamp' or key == 'dwTimeStamp':
+                    val_str = '%-8X' % (val) if key.startswith('Signature_') else '0x%-8X' % (val)
+                    if key in ['TimeDateStamp', 'dwTimeStamp']:
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
                         except ValueError as e:
@@ -949,12 +935,10 @@ class Structure(object):
                 else:
                     val_str = bytearray(val)
                     if key.startswith('Signature'):
-                        val_str = ''.join(
-                            ['{:02X}'.format(i) for i in val_str.rstrip(b'\x00')])
+                        val_str = ''.join('{:02X}'.format(i) for i in val_str.rstrip(b'\x00'))
                     else:
-                        val_str = ''.join(
-                            [chr(i) if (i in printable_bytes) else
-                             '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
+                        val_str = ''.join(chr(i) if (i in printable_bytes) else
+                             '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00'))
 
                 dump.append('0x%-8X 0x%-3X %-30s %s' % (
                     self.__field_offsets__[key] + self.__file_offset__,
@@ -965,9 +949,7 @@ class Structure(object):
     def dump_dict(self):
         """Returns a dictionary representation of the structure."""
 
-        dump_dict = dict()
-
-        dump_dict['Structure'] = self.name
+        dump_dict = {'Structure': self.name}
 
         # Refer to the __set_format__ method for an explanation
         # of the following construct.
@@ -976,7 +958,7 @@ class Structure(object):
 
                 val = getattr(self, key)
                 if isinstance(val, (int, long)):
-                    if key == 'TimeDateStamp' or key == 'dwTimeStamp':
+                    if key in ['TimeDateStamp', 'dwTimeStamp']:
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
                         except ValueError as e:
@@ -2074,11 +2056,7 @@ class PE(object):
                 self.OPTIONAL_HEADER.FileAlignment )
             for s in self.sections if s.PointerToRawData>0 ]
 
-        if len(rawDataPointers) > 0:
-            lowest_section_offset = min(rawDataPointers)
-        else:
-            lowest_section_offset = None
-
+        lowest_section_offset = min(rawDataPointers) if rawDataPointers else None
         if not lowest_section_offset or lowest_section_offset < offset:
             self.header = self.__data__[:offset]
         else:
@@ -2255,35 +2233,33 @@ class PE(object):
             offset = structure.get_file_offset()
             file_data[offset:offset+len(struct_data)] = struct_data
 
-        if hasattr(self, 'VS_VERSIONINFO'):
-            if hasattr(self, 'FileInfo'):
-                for finfo in self.FileInfo:
-                    for entry in finfo:
-                        if hasattr(entry, 'StringTable'):
-                            for st_entry in entry.StringTable:
-                                for key, entry in list(st_entry.entries.items()):
+        if hasattr(self, 'VS_VERSIONINFO') and hasattr(self, 'FileInfo'):
+            for finfo in self.FileInfo:
+                for entry in finfo:
+                    if hasattr(entry, 'StringTable'):
+                        for st_entry in entry.StringTable:
+                            for key, entry in list(st_entry.entries.items()):
 
-                                    # Offsets and lengths of the keys and values.
-                                    # Each value in the dictionary is a tuple:
-                                    #  (key length, value length)
-                                    # The lengths are in characters, not in bytes.
-                                    offsets = st_entry.entries_offsets[key]
-                                    lengths = st_entry.entries_lengths[key]
+                                # Offsets and lengths of the keys and values.
+                                # Each value in the dictionary is a tuple:
+                                #  (key length, value length)
+                                # The lengths are in characters, not in bytes.
+                                offsets = st_entry.entries_offsets[key]
+                                lengths = st_entry.entries_lengths[key]
 
-                                    if len( entry ) > lengths[1]:
-                                        l = entry.decode('utf-8').encode('utf-16le')
-                                        file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
-                                    else:
-                                        encoded_data = entry.decode('utf-8').encode('utf-16le')
-                                        file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
+                                if len( entry ) > lengths[1]:
+                                    l = entry.decode('utf-8').encode('utf-16le')
+                                    file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
+                                else:
+                                    encoded_data = entry.decode('utf-8').encode('utf-16le')
+                                    file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
 
         new_file_data = file_data
         if not filename:
             return new_file_data
 
-        f = open(filename, 'wb+')
-        f.write(new_file_data)
-        f.close()
+        with open(filename, 'wb+') as f:
+            f.write(new_file_data)
         return
 
 
@@ -2446,9 +2422,8 @@ class PE(object):
             ('IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT', self.parse_delay_import_directory),
             ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports) )
 
-        if directories is not None:
-            if not isinstance(directories, (tuple, list)):
-                directories = [directories]
+        if directories is not None and not isinstance(directories, (tuple, list)):
+            directories = [directories]
 
         for entry in directory_parsing:
             # OC Patch:
@@ -2462,18 +2437,18 @@ class PE(object):
             # Only process all the directories if no individual ones have
             # been chosen
             #
-            if directories is None or directory_index in directories:
+            if (
+                directories is None or directory_index in directories
+            ) and dir_entry.VirtualAddress:
+                if forwarded_exports_only and entry[0] == 'IMAGE_DIRECTORY_ENTRY_EXPORT':
+                    value = entry[1](dir_entry.VirtualAddress, dir_entry.Size, forwarded_only=True)
+                elif import_dllnames_only and entry[0] == 'IMAGE_DIRECTORY_ENTRY_IMPORT':
+                    value = entry[1](dir_entry.VirtualAddress, dir_entry.Size, dllnames_only=True)
 
-                if dir_entry.VirtualAddress:
-                    if forwarded_exports_only and entry[0] == 'IMAGE_DIRECTORY_ENTRY_EXPORT':
-                        value = entry[1](dir_entry.VirtualAddress, dir_entry.Size, forwarded_only=True)
-                    elif import_dllnames_only and entry[0] == 'IMAGE_DIRECTORY_ENTRY_IMPORT':
-                        value = entry[1](dir_entry.VirtualAddress, dir_entry.Size, dllnames_only=True)
-
-                    else:
-                        value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
-                    if value:
-                        setattr(self, entry[0][6:], value)
+                else:
+                    value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
+                if value:
+                    setattr(self, entry[0][6:], value)
 
             if (directories is not None) and isinstance(directories, list) and (entry[0] in directories):
                 directories.remove(directory_index)
@@ -2534,7 +2509,7 @@ class PE(object):
 
             forwarder_refs = []
             # 8 is the size of __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__
-            for idx in range(min(bnd_descr.NumberOfModuleForwarderRefs,
+            for _ in range(min(bnd_descr.NumberOfModuleForwarderRefs,
                                  int(safety_boundary / 8))):
                 # Both structures IMAGE_BOUND_IMPORT_DESCRIPTOR and
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
@@ -2960,7 +2935,7 @@ class PE(object):
                 (number_of_entries, MAX_ALLOWED_ENTRIES) )
             return None
 
-        strings_to_postprocess = list()
+        strings_to_postprocess = []
 
         # Keep track of the last name's start and end offsets in order
         # to be able to detect overlapping entries that might suggest
@@ -3041,11 +3016,11 @@ class PE(object):
                 #
                 strings = None
                 if entry_id == RESOURCE_TYPE['RT_STRING']:
-                    strings = dict()
+                    strings = {}
                     for resource_id in entry_directory.entries:
                         if hasattr(resource_id, 'directory'):
 
-                            resource_strings = dict()
+                            resource_strings = {}
 
                             for resource_lang in resource_id.directory.entries:
 
@@ -3135,11 +3110,9 @@ class PE(object):
         for idx, s in enumerate(strings_to_postprocess):
             s.render_pascal_16()
 
-        resource_directory_data = ResourceDirData(
+        return ResourceDirData(
             struct = resource_dir,
             entries = dir_entries)
-
-        return resource_directory_data
 
 
     def parse_resource_data_entry(self, rva):
